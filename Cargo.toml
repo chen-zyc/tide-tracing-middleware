@@ -20,3 +20,4 @@ time = {version = "0.2", default-features = false, features = ["std"]}
 tide = "0.16"
 async-std = {version = "1.10", features = ["attributes"]}
 tracing-subscriber = "0.2.0"
+uuid = {version = "0.8", features = ["v4"]}
