@@ -85,6 +85,8 @@ use tracing::{error, info};
 ///
 /// `%{FOO}xi`  [custom request replacement](TracingMiddleware::custom_request_replace) labelled "FOO"
 ///
+/// `%{FOO}xo`  [custom response replacement](TracingMiddleware::custom_response_replace) labelled "FOO"
+///
 pub struct TracingMiddleware<State: Clone + Send + Sync + 'static> {
     inner: Arc<Inner<State>>,
 }
@@ -154,6 +156,38 @@ where
             // non-printed request replacement function diagnostic
             error!(
                 "Attempted to register custom request logging function for nonexistent label: {}",
+                label
+            );
+        }
+
+        self
+    }
+
+    /// Register a function that receives a Response and returns a String for use in the
+    /// log line. The label passed as the first argument should match a replacement substring in
+    /// the logger format like `%{label}xo`.
+    ///
+    /// It is convention to print "-" to indicate no output instead of an empty string.
+    pub fn custom_response_replace(
+        mut self,
+        label: &str,
+        f: impl Fn(&Response) -> String + Send + Sync + 'static,
+    ) -> Self {
+        let inner = Arc::get_mut(&mut self.inner).unwrap();
+
+        let ft = inner.format.0.iter_mut().find(
+            |ft| matches!(ft, FormatText::CustomResponse(unit_label, _) if label == unit_label),
+        );
+
+        if let Some(FormatText::CustomResponse(_, response_fn)) = ft {
+            // replace into None or previously registered fn using same label
+            response_fn.replace(CustomResponseFn {
+                inner_fn: Arc::new(f),
+            });
+        } else {
+            // non-printed response replacement function diagnostic
+            error!(
+                "Attempted to register custom response logging function for nonexistent label: {}",
                 label
             );
         }
@@ -230,7 +264,7 @@ impl<State: Clone + Send + Sync + 'static> Format<State> {
     ///
     /// Returns `None` if the format string syntax is incorrect.
     fn new(s: &str) -> Format<State> {
-        let fmt = Regex::new(r"%(\{([A-Za-z0-9\-_]+)\}([aioe]|xi)|[atPrUsbTDMVQ]?)").unwrap();
+        let fmt = Regex::new(r"%(\{([A-Za-z0-9\-_]+)\}([aioe]|xi|xo)|[atPrUsbTDMVQ]?)").unwrap();
 
         let mut idx = 0;
         let mut results = Vec::new();
@@ -255,6 +289,7 @@ impl<State: Clone + Send + Sync + 'static> Format<State> {
                     "o" => FormatText::ResponseHeader(HeaderName::try_from(key.as_str()).unwrap()),
                     "e" => FormatText::EnvironHeader(key.as_str().to_owned()),
                     "xi" => FormatText::CustomRequest(key.as_str().to_owned(), None),
+                    "xo" => FormatText::CustomResponse(key.as_str().to_owned(), None),
                     _ => unreachable!(),
                 })
             } else {
@@ -315,6 +350,7 @@ enum FormatText<State: Clone + Send + Sync + 'static> {
     ResponseHeader(HeaderName),
     EnvironHeader(String),
     CustomRequest(String, Option<CustomRequestFn<State>>),
+    CustomResponse(String, Option<CustomResponseFn>),
 }
 
 #[doc(hidden)]
@@ -338,6 +374,24 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmtResult {
         f.write_str("custom_request_fn")
+    }
+}
+
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct CustomResponseFn {
+    inner_fn: Arc<dyn Fn(&Response) -> String + Sync + Send>,
+}
+
+impl CustomResponseFn {
+    fn call(&self, resp: &Response) -> String {
+        (self.inner_fn)(resp)
+    }
+}
+
+impl fmt::Debug for CustomResponseFn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmtResult {
+        f.write_str("custom_response_fn")
     }
 }
 
@@ -415,11 +469,11 @@ where
     }
 
     fn render_response(&mut self, resp: &Response) {
-        match *self {
+        match &*self {
             FormatText::ResponseStatus => {
                 *self = FormatText::Str(format!("{}", resp.status() as u16))
             }
-            FormatText::ResponseHeader(ref name) => {
+            FormatText::ResponseHeader(name) => {
                 let s = if let Some(val) = resp.header(name) {
                     if let Some(v) = val.get(0) {
                         v.as_str()
@@ -430,6 +484,12 @@ where
                     "-"
                 };
                 *self = FormatText::Str(s.to_string())
+            }
+            FormatText::CustomResponse(_, response_fn) => {
+                *self = match response_fn {
+                    Some(f) => FormatText::Str(f.call(resp)),
+                    None => FormatText::Str("-".to_owned()),
+                };
             }
             _ => (),
         }

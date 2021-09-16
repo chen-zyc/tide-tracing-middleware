@@ -8,15 +8,15 @@ async fn main() -> tide::Result<()> {
     FmtSubscriber::builder().with_max_level(Level::DEBUG).init();
 
     let tracing_middleware = TracingMiddleware::new(
-        "%t  %a(%{r}a)  %r(%M %U %Q %V) %s %b(bytes) %T(seconds) %D(milliseconds) %{ALL_REQ_HEADERS}xi",
-    );
-    let tracing_middleware = tracing_middleware.custom_request_replace("ALL_REQ_HEADERS", |req| {
-        let mut header_pair = vec![];
-        for (header_name, header_values) in req {
-            header_pair.push(format!("{}:{}", header_name.as_str(), header_values));
-        }
-        "{".to_owned() + &header_pair.join(",") + "}"
-    });
+        "%t  %a(%{r}a)  %r(%M %U %Q %V) %s %b(bytes) %T(seconds) %D(milliseconds) REQ_HEADERS:%{ALL_REQ_HEADERS}xi RES_HEADERS:%{ALL_RES_HEADERS}xo",
+    ).custom_request_replace("ALL_REQ_HEADERS", |req| {
+        let pairs = req.iter().map(|(k, v)| format!("{}:{}", k, v)).collect::<Vec<String>>();
+        "{".to_owned() + &pairs.join(",") + "}"
+    })
+        .custom_response_replace("ALL_RES_HEADERS", |res| {
+            let pairs = res.iter().map(|(k, v)| format!("{}:{}", k, v)).collect::<Vec<String>>();
+            "{".to_owned() + &pairs.join(",") + "}"
+        });
 
     let mut app = tide::new();
     app.with(tracing_middleware);
