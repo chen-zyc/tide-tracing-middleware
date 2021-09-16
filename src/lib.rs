@@ -11,7 +11,8 @@ use regex::{Regex, RegexSet};
 use tide::http::headers::HeaderName;
 use tide::{Body, Middleware, Next, Request, Response};
 use time::OffsetDateTime;
-use tracing::{error, info};
+use tracing::{error, info, Span};
+use tracing_futures::Instrument;
 
 /// `TracingMiddleware` for logging request and response info to the terminal.
 ///
@@ -95,6 +96,7 @@ struct Inner<State: Clone + Send + Sync + 'static> {
     format: Format<State>,
     exclude: HashSet<String>,
     exclude_regex: RegexSet,
+    gen_tracing_span: Option<fn(&Request<State>) -> Span>,
 }
 
 impl<State> TracingMiddleware<State>
@@ -108,6 +110,7 @@ where
                 format: Format::new(s),
                 exclude: HashSet::new(),
                 exclude_regex: RegexSet::empty(),
+                gen_tracing_span: None,
             }),
         }
     }
@@ -194,6 +197,12 @@ where
 
         self
     }
+
+    pub fn gen_tracing_span(mut self, f: fn(&Request<State>) -> Span) -> Self {
+        let inner = Arc::get_mut(&mut self.inner).unwrap();
+        inner.gen_tracing_span.replace(f);
+        self
+    }
 }
 
 impl<State: Clone + Send + Sync + 'static> Default for TracingMiddleware<State> {
@@ -208,6 +217,7 @@ impl<State: Clone + Send + Sync + 'static> Default for TracingMiddleware<State> 
                 format: Format::default(),
                 exclude: HashSet::new(),
                 exclude_regex: RegexSet::empty(),
+                gen_tracing_span: None,
             }),
         }
     }
@@ -230,7 +240,14 @@ where
             unit.render_request(now, &request);
         }
 
-        let mut resp = next.run(request).await;
+        let span = if let Some(f) = self.inner.gen_tracing_span.as_ref() {
+            f(&request)
+        } else {
+            Span::none()
+        };
+        let cloned_span = span.clone();
+
+        let mut resp = next.run(request).instrument(span).await;
 
         for unit in &mut format.0 {
             unit.render_response(&resp);
@@ -245,6 +262,7 @@ where
                 format,
                 size: 0,
                 time: now,
+                span: cloned_span,
             }),
             body_len,
         );
@@ -534,6 +552,7 @@ struct StreamLog<State: Clone + Send + Sync + 'static> {
     format: Format<State>,
     size: usize,
     time: OffsetDateTime,
+    span: Span,
 }
 
 #[pinned_drop]
@@ -545,7 +564,7 @@ impl<State: Clone + Send + Sync + 'static> PinnedDrop for StreamLog<State> {
             }
             Ok(())
         };
-        info!("{}", FormatDisplay(&render));
+        info!(parent: &self.span, "{}", FormatDisplay(&render));
     }
 }
 
