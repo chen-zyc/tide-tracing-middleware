@@ -8,7 +8,7 @@ async fn main() -> tide::Result<()> {
     FmtSubscriber::builder().with_max_level(Level::DEBUG).init();
 
     let tracing_middleware = TracingMiddleware::new(
-        "%t  %a(%{r}a)  %U(%r) %s %b(bytes) %T(seconds) %D(milliseconds) %{ALL_REQ_HEADERS}xi",
+        "%t  %a(%{r}a)  %r(%M %U %Q %V) %s %b(bytes) %T(seconds) %D(milliseconds) %{ALL_REQ_HEADERS}xi",
     );
     let tracing_middleware = tracing_middleware.custom_request_replace("ALL_REQ_HEADERS", |req| {
         let mut header_pair = vec![];
@@ -19,7 +19,6 @@ async fn main() -> tide::Result<()> {
     });
 
     let mut app = tide::new();
-    app.with(TracingMiddleware::default());
     app.with(tracing_middleware);
     app.at("/index").get(index);
     app.listen("127.0.0.1:8080").await?;

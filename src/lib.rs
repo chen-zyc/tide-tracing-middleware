@@ -63,11 +63,17 @@ use tracing::{error, info};
 ///
 /// `%b`  Size of response body in bytes, not including HTTP headers
 ///
-/// `%T` Time taken to serve the request, in seconds with floating fraction in .06f format
+/// `%T`  Time taken to serve the request, in seconds with floating fraction in .06f format
 ///
 /// `%D`  Time taken to serve the request, in milliseconds
 ///
 /// `%U`  Request URL
+///
+/// `%M`  Request method
+///
+/// `%V`  Request HTTP version
+///
+/// `%Q`  Request URL's query string
 ///
 /// `%{r}a`  Real IP remote address **\***
 ///
@@ -224,7 +230,7 @@ impl<State: Clone + Send + Sync + 'static> Format<State> {
     ///
     /// Returns `None` if the format string syntax is incorrect.
     fn new(s: &str) -> Format<State> {
-        let fmt = Regex::new(r"%(\{([A-Za-z0-9\-_]+)\}([aioe]|xi)|[atPrUsbTD]?)").unwrap();
+        let fmt = Regex::new(r"%(\{([A-Za-z0-9\-_]+)\}([aioe]|xi)|[atPrUsbTDMVQ]?)").unwrap();
 
         let mut idx = 0;
         let mut results = Vec::new();
@@ -260,6 +266,9 @@ impl<State: Clone + Send + Sync + 'static> Format<State> {
                     "r" => FormatText::RequestLine,
                     "s" => FormatText::ResponseStatus,
                     "b" => FormatText::ResponseSize,
+                    "M" => FormatText::Method,
+                    "V" => FormatText::Version,
+                    "Q" => FormatText::Query,
                     "U" => FormatText::UrlPath,
                     "T" => FormatText::Time,
                     "D" => FormatText::TimeMillis,
@@ -298,7 +307,10 @@ enum FormatText<State: Clone + Send + Sync + 'static> {
     TimeMillis,
     RemoteAddr,
     RealIPRemoteAddr,
+    Method,
+    Version,
     UrlPath,
+    Query,
     RequestHeader(HeaderName),
     ResponseHeader(HeaderName),
     EnvironHeader(String),
@@ -352,6 +364,17 @@ where
                         req.version().as_ref().map_or("?", |v| v.as_ref())
                     ))
                 };
+            }
+            FormatText::Method => *self = FormatText::Str(req.method().to_string()),
+            FormatText::Version => {
+                *self = FormatText::Str(
+                    req.version()
+                        .as_ref()
+                        .map_or("?".to_owned(), |v| v.to_string()),
+                )
+            }
+            FormatText::Query => {
+                *self = FormatText::Str(req.url().query().map_or("-".to_owned(), |v| v.to_string()))
             }
             FormatText::UrlPath => *self = FormatText::Str(req.url().path().to_string()),
             FormatText::RequestTime => *self = FormatText::Str(now.format("%Y-%m-%dT%H:%M:%S")),
