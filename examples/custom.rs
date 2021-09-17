@@ -12,11 +12,10 @@ async fn main() -> tide::Result<()> {
     ).custom_request_replace("ALL_REQ_HEADERS", |req| {
         let pairs = req.iter().map(|(k, v)| format!("{}:{}", k, v)).collect::<Vec<String>>();
         "{".to_owned() + &pairs.join(",") + "}"
-    })
-        .custom_response_replace("ALL_RES_HEADERS", |res| {
-            let pairs = res.iter().map(|(k, v)| format!("{}:{}", k, v)).collect::<Vec<String>>();
-            "{".to_owned() + &pairs.join(",") + "}"
-        });
+    }).custom_response_replace("ALL_RES_HEADERS", |res| {
+        let pairs = res.iter().map(|(k, v)| format!("{}:{}", k, v)).collect::<Vec<String>>();
+        "{".to_owned() + &pairs.join(",") + "}"
+    });
 
     let mut app = tide::new();
     app.with(tracing_middleware);
