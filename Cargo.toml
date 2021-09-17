@@ -1,6 +1,6 @@
 [package]
 name = "tide-tracing-middleware"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 authors = ["Yuchen Zhang <zhangyuchen0411@163.com"]
 repository = "https://github.com/chen-zyc/tide-tracing-middleware"

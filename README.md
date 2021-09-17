@@ -61,12 +61,26 @@ let tracing_middleware = TracingMiddleware::new(
 Sep 16 21:18:15.174  INFO tide_tracing_middleware: 2021-09-16T13:18:15  127.0.0.1:56234(127.0.0.1:56234)  GET /index?a=1&b=2 HTTP/1.1(GET /index a=1&b=2 HTTP/1.1) 200 12(bytes) 0.000437(seconds) 0.461000(milliseconds) REQ_HEADERS:{accept:["*/*"],user-agent:["curl/7.64.1"],host:["127.0.0.1:8080"]} RES_HEADERS:{content-type:["text/plain;charset=utf-8"]}
 ```
 
-支持的标签和 actix-web 的 log 中间件一样，只是多添加了几个标签：
+支持的标签和 actix-web 的 log 中间件一样，但多添加了几个标签：
 
-* `%M`: 请求的方法。
-* `%V`: HTTP 的版本。
-* `%Q`: 请求 URL 的查询参数。
-* `%{FOO}xo`: 自定义响应标签。
+- `%%`: The percent sign
+- `%a`: Remote IP-address (IP-address of proxy if using reverse proxy)
+- `%t`: Time when the request was started to process (in rfc3339 format)
+- `%r`: First line of request
+- `%s`: Response status code
+- `%b`: Size of response body in bytes, not including HTTP headers
+- `%T`: Time taken to serve the request, in seconds with floating fraction in .06f format
+- `%D`: Time taken to serve the request, in milliseconds
+- `%U`: Request URL
+- `%M`: Request method
+- `%V`: Request HTTP version
+- `%Q`: Request URL's query string
+- `%{r}a`: Real IP remote address
+- `%{FOO}i`: request.headers['FOO']
+- `%{FOO}o`: response.headers['FOO']
+- `%{FOO}e`: os.environ['FOO']
+- `%{FOO}xi`: custom request replacement labelled "FOO"
+- `%{FOO}xo`: custom response replacement labelled "FOO"
 
 
 ## 生成 tracing span

@@ -28,65 +28,49 @@ use tracing_futures::Instrument;
 ///
 /// ```rust
 /// use tide::{Request, Response, StatusCode};
-// use tide_tracing_middleware::TracingMiddleware;
-// use tracing::Level;
-// use tracing_subscriber::FmtSubscriber;
-//
-// #[async_std::main]
-// async fn main() -> tide::Result<()> {
-//     FmtSubscriber::builder().with_max_level(Level::DEBUG).init();
-//
-//     let mut app = tide::new();
-//     app.with(TracingMiddleware::default());
-//     app.at("/index").get(index);
-//     app.listen("127.0.0.1:8080").await?;
-//     Ok(())
-// }
-//
-// async fn index(_req: Request<()>) -> tide::Result {
-//     let res = Response::builder(StatusCode::Ok)
-//         .body("hello world!")
-//         .build();
-//     Ok(res)
-// }
+/// use tide_tracing_middleware::TracingMiddleware;
+/// use tracing::Level;
+/// use tracing_subscriber::FmtSubscriber;
+///
+/// #[async_std::main]
+/// async fn main() -> tide::Result<()> {
+///     FmtSubscriber::builder().with_max_level(Level::DEBUG).init();
+///
+///     let mut app = tide::new();
+///     app.with(TracingMiddleware::default());
+///     app.at("/index").get(index);
+///     app.listen("127.0.0.1:8080").await?;
+///     Ok(())
+/// }
+///
+/// async fn index(_req: Request<()>) -> tide::Result {
+///     let res = Response::builder(StatusCode::Ok)
+///         .body("hello world!")
+///         .build();
+///     Ok(res)
+/// }
+/// ```
 ///
 /// ## Format
 ///
-/// `%%`  The percent sign
-///
-/// `%a`  Remote IP-address (IP-address of proxy if using reverse proxy)
-///
-/// `%t`  Time when the request was started to process (in rfc3339 format)
-///
-/// `%r`  First line of request
-///
-/// `%s`  Response status code
-///
-/// `%b`  Size of response body in bytes, not including HTTP headers
-///
-/// `%T`  Time taken to serve the request, in seconds with floating fraction in .06f format
-///
-/// `%D`  Time taken to serve the request, in milliseconds
-///
-/// `%U`  Request URL
-///
-/// `%M`  Request method
-///
-/// `%V`  Request HTTP version
-///
-/// `%Q`  Request URL's query string
-///
-/// `%{r}a`  Real IP remote address **\***
-///
-/// `%{FOO}i`  request.headers['FOO']
-///
-/// `%{FOO}o`  response.headers['FOO']
-///
-/// `%{FOO}e`  os.environ['FOO']
-///
-/// `%{FOO}xi`  [custom request replacement](TracingMiddleware::custom_request_replace) labelled "FOO"
-///
-/// `%{FOO}xo`  [custom response replacement](TracingMiddleware::custom_response_replace) labelled "FOO"
+/// - `%%`: The percent sign
+/// - `%a`: Remote IP-address (IP-address of proxy if using reverse proxy)
+/// - `%t`: Time when the request was started to process (in rfc3339 format)
+/// - `%r`: First line of request
+/// - `%s`: Response status code
+/// - `%b`: Size of response body in bytes, not including HTTP headers
+/// - `%T`: Time taken to serve the request, in seconds with floating fraction in .06f format
+/// - `%D`: Time taken to serve the request, in milliseconds
+/// - `%U`: Request URL
+/// - `%M`: Request method
+/// - `%V`: Request HTTP version
+/// - `%Q`: Request URL's query string
+/// - `%{r}a`: Real IP remote address **\***
+/// - `%{FOO}i`: request.headers['FOO']
+/// - `%{FOO}o`: response.headers['FOO']
+/// - `%{FOO}e`: os.environ['FOO']
+/// - `%{FOO}xi`: [custom request replacement](TracingMiddleware::custom_request_replace) labelled "FOO"
+/// - `%{FOO}xo`: [custom response replacement](TracingMiddleware::custom_response_replace) labelled "FOO"
 ///
 pub struct TracingMiddleware<State: Clone + Send + Sync + 'static> {
     inner: Arc<Inner<State>>,
