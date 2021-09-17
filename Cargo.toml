@@ -17,7 +17,7 @@ regex = "1.5"
 time = {version = "0.2", default-features = false, features = ["std"]}
 
 [dev-dependencies]
-tide = "0.16"
+tide = {version = "0.16", default-features = false, features = ["h1-server"]}
 async-std = {version = "1.10", features = ["attributes"]}
 tracing-subscriber = "0.2.0"
 uuid = {version = "0.8", features = ["v4"]}
